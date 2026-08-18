@@ -4,6 +4,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include "overlay_state.h"
 
 /* Conditionally include gtk-layer-shell */
 #ifdef HAVE_GTK_LAYER_SHELL
@@ -17,11 +18,6 @@
 #include <X11/keysym.h>
 #include <X11/XKBlib.h>
 #endif
-
-/* ---- State constants ---- */
-#define OVERLAY_STATE_IDLE          0
-#define OVERLAY_STATE_RECORDING     1
-#define OVERLAY_STATE_TRANSCRIBING  2
 
 /* ---- Geometry ---- */
 #define OVERLAY_WIDTH    220

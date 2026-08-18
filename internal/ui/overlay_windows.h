@@ -1,9 +1,6 @@
 #pragma once
 
-/* ---- State constants (must match ui.AppState) ---- */
-#define OVERLAY_STATE_IDLE          0
-#define OVERLAY_STATE_RECORDING     1
-#define OVERLAY_STATE_TRANSCRIBING  2
+#include "overlay_state.h"
 
 /* ---- Geometry (identical to overlay_linux.h) ---- */
 #define OVERLAY_WIDTH    220

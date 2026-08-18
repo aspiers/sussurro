@@ -16,6 +16,7 @@ import (
 	"github.com/aploide/sussurro/internal/llm"
 	"github.com/aploide/sussurro/internal/logger"
 	"github.com/aploide/sussurro/internal/pipeline"
+	"github.com/aploide/sussurro/internal/session"
 	"github.com/aploide/sussurro/internal/setup"
 	"github.com/aploide/sussurro/internal/trigger"
 	"github.com/aploide/sussurro/internal/ui"
@@ -160,17 +161,16 @@ func run() {
 		buildHotkeyCallbacks := func(mode string) (onDown func(), onUp func()) {
 			if mode == "toggle" {
 				return func() {
-					if !pipe.StopRecording() {
-						log.Info("Listening...")
-						pipe.StartRecording()
-					} else {
+					if session.DispatchImmediateInput(pipe, session.InputToggle) {
 						log.Info("Transcribing...")
+					} else {
+						log.Info("Listening...")
 					}
 				}, func() {}
 			}
 			// Default: push-to-talk
-			return func() { log.Info("Listening..."); pipe.StartRecording() },
-				func() { log.Info("Transcribing..."); pipe.StopRecording() }
+			return func() { log.Info("Listening..."); session.DispatchImmediateInput(pipe, session.InputPress) },
+				func() { log.Info("Transcribing..."); session.DispatchImmediateInput(pipe, session.InputRelease) }
 		}
 		uiMgr.SetHotkeyCallbackFactory(buildHotkeyCallbacks)
 
@@ -184,8 +184,14 @@ func run() {
 			}
 			defer triggerServer.Stop()
 			if err := triggerServer.Start(
-				func() { log.Debug("Trigger: Starting recording"); pipe.StartRecording() },
-				func() { log.Debug("Trigger: Stopping recording"); pipe.StopRecording() },
+				func() {
+					log.Debug("Trigger: Starting recording")
+					session.DispatchImmediateInput(pipe, session.InputPress)
+				},
+				func() {
+					log.Debug("Trigger: Stopping recording")
+					session.DispatchImmediateInput(pipe, session.InputRelease)
+				},
 			); err != nil {
 				log.Error("Failed to start trigger server", "error", err)
 				os.Exit(1)
@@ -216,8 +222,14 @@ func run() {
 		defer triggerServer.Stop()
 
 		if err := triggerServer.Start(
-			func() { log.Debug("Trigger: Starting recording"); pipe.StartRecording() },
-			func() { log.Debug("Trigger: Stopping recording"); pipe.StopRecording() },
+			func() {
+				log.Debug("Trigger: Starting recording")
+				session.DispatchImmediateInput(pipe, session.InputPress)
+			},
+			func() {
+				log.Debug("Trigger: Stopping recording")
+				session.DispatchImmediateInput(pipe, session.InputRelease)
+			},
 		); err != nil {
 			log.Error("Failed to start trigger server", "error", err)
 			os.Exit(1)
@@ -229,17 +241,16 @@ func run() {
 		var onDown, onUp func()
 		if cfg.Hotkey.Mode == "toggle" {
 			onDown = func() {
-				if !pipe.StopRecording() {
-					log.Info("Listening...")
-					pipe.StartRecording()
-				} else {
+				if session.DispatchImmediateInput(pipe, session.InputToggle) {
 					log.Info("Transcribing...")
+				} else {
+					log.Info("Listening...")
 				}
 			}
 			onUp = func() {}
 		} else {
-			onDown = func() { log.Info("Listening..."); pipe.StartRecording() }
-			onUp = func() { log.Info("Transcribing..."); pipe.StopRecording() }
+			onDown = func() { log.Info("Listening..."); session.DispatchImmediateInput(pipe, session.InputPress) }
+			onUp = func() { log.Info("Transcribing..."); session.DispatchImmediateInput(pipe, session.InputRelease) }
 		}
 
 		hkHandler, err := hotkey.NewHandler(cfg.Hotkey.Trigger, log)

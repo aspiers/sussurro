@@ -58,7 +58,24 @@ func (o *windowsOverlay) Hide() {
 }
 
 func (o *windowsOverlay) SetState(state AppState) {
-	C.overlay_set_state_async(o.hwnd, C.int(state))
+	nativeState, ok := nativeOverlayState(state)
+	if !ok {
+		return
+	}
+	C.overlay_set_state_async(o.hwnd, nativeState)
+}
+
+func nativeOverlayState(state AppState) (C.int, bool) {
+	switch state {
+	case StateIdle:
+		return C.OVERLAY_STATE_IDLE, true
+	case StateRecording:
+		return C.OVERLAY_STATE_RECORDING, true
+	case StateTranscribing:
+		return C.OVERLAY_STATE_TRANSCRIBING, true
+	default:
+		return 0, false
+	}
 }
 
 func (o *windowsOverlay) PushRMS(rms float32) {

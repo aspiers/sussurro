@@ -13,6 +13,7 @@ import (
 	ctxProvider "github.com/aploide/sussurro/internal/context"
 	"github.com/aploide/sussurro/internal/injection"
 	"github.com/aploide/sussurro/internal/llm"
+	"github.com/aploide/sussurro/internal/session"
 )
 
 // audioBufferCapFor returns a sensible pre-allocation capacity (in samples)
@@ -33,9 +34,7 @@ func audioBufferCapFor(maxDuration string, sampleRate int) int {
 // StateNotifier receives pipeline state transitions and audio RMS values.
 // Implementations must be non-blocking (use channels / async dispatch internally).
 type StateNotifier interface {
-	// AppState values mirror ui.AppState to avoid an import cycle.
-	// 0=Idle, 1=Recording, 2=Transcribing
-	OnStateChange(state int)
+	OnStateChange(state session.State)
 	OnRMSData(rms float32)
 }
 
@@ -136,7 +135,7 @@ func (p *Pipeline) SetUINotifier(n StateNotifier) {
 }
 
 // notifyState sends a state change to the UI notifier (nil-safe).
-func (p *Pipeline) notifyState(state int) {
+func (p *Pipeline) notifyState(state session.State) {
 	if p.uiNotifier != nil {
 		p.uiNotifier.OnStateChange(state)
 	}
@@ -185,7 +184,7 @@ func (p *Pipeline) StartRecording() {
 		p.audioBuffer = make([]float32, 0, p.audioBufferCap)
 	}
 	p.log.Debug("Recording started")
-	p.notifyState(1) // StateRecording
+	p.notifyState(session.StateRecording)
 }
 
 // StopRecording stops accumulating and triggers processing
@@ -201,7 +200,7 @@ func (p *Pipeline) StopRecording() bool {
 	p.isRecording = false
 	p.isTranscribing = true
 	p.log.Debug("Recording stopped", "buffer_size", len(p.audioBuffer))
-	p.notifyState(2) // StateTranscribing
+	p.notifyState(session.StateTranscribing)
 
 	// Process the captured audio in a separate goroutine to not block
 	// Make a copy of the buffer
@@ -256,7 +255,7 @@ func (p *Pipeline) captureLoop() {
 					p.log.Warn("Max recording duration reached, forcing stop", "limit", p.maxDuration)
 					p.isRecording = false
 					p.isTranscribing = true
-					p.notifyState(2) // StateTranscribing
+					p.notifyState(session.StateTranscribing)
 
 					// Copy and process immediately
 					bufferCopy := make([]float32, len(p.audioBuffer))
@@ -286,7 +285,7 @@ func (p *Pipeline) processSegment(samples []float32) {
 		p.mu.Lock()
 		p.isTranscribing = false
 		p.mu.Unlock()
-		p.notifyState(0) // StateIdle
+		p.notifyState(session.StateIdle)
 		if p.onCompletion != nil {
 			p.onCompletion()
 		}

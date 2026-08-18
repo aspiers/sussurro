@@ -2,17 +2,13 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
 #include <math.h>
+#include "overlay_state.h"
 
 /* Exported Go callbacks — defined by CGo in overlay_darwin.go */
 extern void overlayGoOpenSettings(void);
 extern void overlayGoQuit(void);
 
 static BOOL g_context_menu_enabled = NO;
-
-/* ---- State constants (must match Go) ---- */
-#define OVERLAY_STATE_IDLE          0
-#define OVERLAY_STATE_RECORDING     1
-#define OVERLAY_STATE_TRANSCRIBING  2
 
 #define ITEM_COUNT     7
 #define BAR_MIN_HEIGHT 4.0

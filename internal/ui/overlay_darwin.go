@@ -5,6 +5,7 @@ package ui
 /*
 #cgo CFLAGS: -x objective-c -Wno-deprecated-declarations
 #cgo LDFLAGS: -framework Cocoa -framework QuartzCore -framework CoreVideo
+#include "overlay_state.h"
 
 extern void* overlay_create_macos(void);
 extern void  overlay_set_state_macos(int state);
@@ -59,7 +60,24 @@ func (o *darwinOverlay) Hide() {
 }
 
 func (o *darwinOverlay) SetState(state AppState) {
-	C.overlay_set_state_macos(C.int(state))
+	nativeState, ok := nativeOverlayState(state)
+	if !ok {
+		return
+	}
+	C.overlay_set_state_macos(nativeState)
+}
+
+func nativeOverlayState(state AppState) (C.int, bool) {
+	switch state {
+	case StateIdle:
+		return C.OVERLAY_STATE_IDLE, true
+	case StateRecording:
+		return C.OVERLAY_STATE_RECORDING, true
+	case StateTranscribing:
+		return C.OVERLAY_STATE_TRANSCRIBING, true
+	default:
+		return 0, false
+	}
 }
 
 func (o *darwinOverlay) PushRMS(rms float32) {

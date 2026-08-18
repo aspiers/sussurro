@@ -89,10 +89,12 @@ func (m *Manager) Quit() {
 // --- StateNotifier implementation (compatible with pipeline.StateNotifier) ---
 
 // OnStateChange is called by the pipeline from its own goroutine.
-// The state int maps to AppState: 0=Idle, 1=Recording, 2=Transcribing.
-func (m *Manager) OnStateChange(state int) {
+func (m *Manager) OnStateChange(state AppState) {
+	if !state.Valid() {
+		return
+	}
 	select {
-	case m.stateChangeCh <- AppState(state):
+	case m.stateChangeCh <- state:
 	default: // drop if channel full (non-blocking)
 	}
 }
