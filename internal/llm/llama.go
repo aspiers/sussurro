@@ -16,9 +16,14 @@ var (
 	reThinkBlock = regexp.MustCompile(`(?s)<think>.*?</think>`)
 )
 
+type predictor interface {
+	Predict(text string, opts ...llama.PredictOption) (string, error)
+	Free()
+}
+
 // Engine handles the LLM model and text generation
 type Engine struct {
-	model   *llama.LLama
+	model   predictor
 	threads int
 	debug   bool
 
@@ -87,6 +92,11 @@ const cleanupChunkTarget = 350
 // formatting needs the whole enumeration in a single call; the validators
 // and recursive bisection still catch any misbehavior.
 const cleanupChunkTargetExtended = 1500
+
+// cleanupMaxTokens bounds cleanup output while leaving enough room for the
+// model to preserve and lightly reformat a full input chunk. Passing zero to
+// go-llama.cpp can produce no output instead of selecting its default.
+const cleanupMaxTokens = 512
 
 // CleanupText processes the raw transcription to remove artifacts and fix
 // grammar. Long transcripts are cleaned chunk-by-chunk so no content can be
@@ -375,13 +385,7 @@ func (e *Engine) cleanupOnce(rawText string) (string, bool, error) {
 		defer cleanup()
 	}
 
-	cleaned, err = e.model.Predict(prompt,
-		llama.SetTokens(0),
-		llama.SetThreads(e.threads),
-		llama.SetTemperature(0.1), // Low temperature for deterministic output
-		llama.SetTopP(0.9),
-		llama.SetStopWords("<|im_end|>"),
-	)
+	cleaned, err = e.model.Predict(prompt, cleanupPredictOptions(e.threads)...)
 
 	if err != nil {
 		return "", false, fmt.Errorf("prediction failed: %w", err)
@@ -429,6 +433,16 @@ func (e *Engine) cleanupOnce(rawText string) (string, bool, error) {
 	}
 
 	return cleaned, true, nil
+}
+
+func cleanupPredictOptions(threads int) []llama.PredictOption {
+	return []llama.PredictOption{
+		llama.SetTokens(cleanupMaxTokens),
+		llama.SetThreads(threads),
+		llama.SetTemperature(0.1), // Low temperature for deterministic output
+		llama.SetTopP(0.9),
+		llama.SetStopWords("<|im_end|>"),
+	}
 }
 
 func validateOutput(raw, cleaned string, dictionary []string) bool {
